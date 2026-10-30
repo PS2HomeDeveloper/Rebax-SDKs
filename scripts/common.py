@@ -2,6 +2,7 @@ import argparse, hashlib, json, lzma, os, subprocess, sys, tarfile
 
 TARGETS = [
     {"id": "ps2", "script": "ps2", "arg": "ps2dev-env"},
+    {"id": "ps1", "script": "ps1", "arg": "0.24"},
     {"id": "android-arm64-v8a", "script": "android", "arg": "arm64-v8a"},
     {"id": "android-armeabi-v7a", "script": "android", "arg": "armeabi-v7a"},
     {"id": "android-x86", "script": "android", "arg": "x86"},

@@ -126,6 +126,24 @@ def build_graphics(abi, ndk, llvm, out, work):
         sys.exit("no shared libraries were installed for graphics")
 
 
+PRUNE = [
+    "runtime/lib/*/libFuzzer.a",
+    "runtime/lib/*/libomp.*",
+    "runtime/lib/*/lldb-server",
+    "runtime/lib/*/libc++experimental.a",
+    "standard/usr/lib/*/tflite_support_libz.a",
+    "standard/usr/include/.clang-format",
+    "graphics/include/SDL2/SDL_test*.h",
+]
+
+
+def prune(out):
+    for pattern in PRUNE:
+        for path in glob.glob(os.path.join(out, pattern)):
+            os.remove(path)
+            print("removed " + os.path.relpath(path, out))
+
+
 def build(abi, out):
     if abi not in ABIS:
         sys.exit("unknown abi " + abi)
@@ -138,6 +156,7 @@ def build(abi, out):
     build_standard(abi, sysroot, out)
     build_runtime(abi, llvm, sysroot, out)
     build_graphics(abi, ndk, llvm, out, work)
+    prune(out)
     with open(os.path.join(out, "SOURCE.txt"), "w") as f:
         f.write("ndk: %s\napi: %s\nsdl2: %s\nlibiconv: %s\n" % (os.path.basename(ndk), API, SDL2_VERSION, LIBICONV_VERSION))
 
