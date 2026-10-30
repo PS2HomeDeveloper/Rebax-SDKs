@@ -1,0 +1,117 @@
+name: Build SDK packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: Build only this target id (empty = all)
+        default: ""
+      release_tag:
+        description: Publish a release with this tag (empty = artifacts only)
+        default: ""
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: m
+        run: python3 scripts/common.py matrix --only "${{ inputs.only }}"
+
+  build:
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Take the official ps2dev environment
+        if: matrix.script == 'ps2'
+        run: |
+          docker pull ps2dev/ps2dev:latest
+          docker inspect --format '{{index .RepoDigests 0}}' ps2dev/ps2dev:latest > source.txt
+          cat source.txt
+          id=$(docker create ps2dev/ps2dev:latest)
+          docker cp "$id:/usr/local/ps2dev" ps2dev-env
+          docker rm "$id"
+
+      - name: Install Android NDK
+        if: matrix.script == 'android'
+        env:
+          NDK_VERSION: 27.3.13750724
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake curl
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" "ndk;$NDK_VERSION" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Collect the SDK
+        run: |
+          if [ "${{ matrix.script }}" = "ps2" ]; then
+            python3 scripts/ps2.py --arg "${{ matrix.arg }}" --out sdk-out --source "$(cat source.txt)"
+          else
+            python3 scripts/${{ matrix.script }}.py --arg "${{ matrix.arg }}" --out sdk-out
+          fi
+
+      - name: Pack
+        run: python3 scripts/common.py pack --root sdk-out --top "sdk-${{ matrix.id }}" --name "sdk-${{ matrix.id }}" --dest dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tree-${{ matrix.id }}
+          path: dist/*.tree.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pkg-${{ matrix.id }}
+          path: |
+            dist/*.tar.xz
+            dist/*.sha256
+          compression-level: 0
+
+  trees:
+    needs: build
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tree-*
+          path: trees
+          merge-multiple: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trees-all
+          path: trees/*
+
+  release:
+    needs: build
+    if: inputs.release_tag != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "{pkg,tree}-*"
+          path: dist
+          merge-multiple: true
+      - name: Manifest
+        run: python3 scripts/common.py manifest --dir dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: dist/*
