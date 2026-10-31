@@ -44,11 +44,9 @@ jobs:
           docker cp "$id:/usr/local/ps2dev" ps2dev-env
           docker rm "$id"
 
-      - name: Install build tools
-        if: matrix.script == 'windows'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build cmake curl
+      - name: Set up emulation
+        if: matrix.script == 'linux'
+        uses: docker/setup-qemu-action@v3
 
       - name: Install Android NDK
         if: matrix.script == 'android'
@@ -70,6 +68,8 @@ jobs:
         run: |
           if [ "${{ matrix.script }}" = "ps2" ]; then
             python3 scripts/ps2.py --arg "${{ matrix.arg }}" --out sdk-out --source "$(cat source.txt)"
+          elif [ "${{ matrix.script }}" = "linux" ]; then
+            docker run --rm --platform "${{ matrix.platform }}" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:/w" -w /w alpine:3.20 sh -c 'apk add --no-cache python3 > /dev/null && python3 scripts/linux.py --arg "${{ matrix.arg }}" --out sdk-out'
           else
             python3 scripts/${{ matrix.script }}.py --arg "${{ matrix.arg }}" --out sdk-out
           fi
