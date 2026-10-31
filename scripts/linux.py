@@ -9,6 +9,11 @@ BASE_PACKAGES = ["musl-dev", "linux-headers", "gcc", "libc++-dev", "libc++-stati
 BUILD_PACKAGES = ["cmake", "ninja", "g++", "make", "libx11-dev", "libxext-dev", "libxrandr-dev",
                   "libxcursor-dev", "libxi-dev", "libxfixes-dev", "libxrender-dev", "libxscrnsaver-dev",
                   "alsa-lib-dev", "mesa-dev", "eudev-dev"]
+COMPILER_HEADERS = ["float.h", "iso646.h", "stdalign.h", "stdarg.h", "stdbool.h", "stddef.h",
+                    "stdnoreturn.h", "tgmath.h"]
+SKIP_HEADERS = ["c++", "python3.12"]
+RUNTIME_HEADERS = ["__libunwind_config.h", "libunwind.h", "libunwind.modulemap", "unwind.h",
+                   "unwind_arm_ehabi.h", "unwind_itanium.h", "mach-o"]
 CRT_FILES = ["crt1.o", "crti.o", "crtn.o", "Scrt1.o", "rcrt1.o"]
 LIB_FILES = ["libc.a", "libc.so", "libm.a", "libpthread.a", "libdl.a", "librt.a", "libutil.a",
              "libresolv.a", "libcrypt.a", "libxnet.a"]
@@ -30,13 +35,14 @@ def collect_base(out):
     rt_inc = os.path.join(out, "runtime", "include")
     for name in sorted(os.listdir("/usr/include")):
         src = os.path.join("/usr/include", name)
-        if name == "c++":
+        if name in SKIP_HEADERS or name in COMPILER_HEADERS:
             continue
+        dst = rt_inc if name in RUNTIME_HEADERS else std_inc
+        os.makedirs(dst, exist_ok=True)
         if os.path.isdir(src):
-            shutil.copytree(src, os.path.join(std_inc, name), symlinks=False)
+            shutil.copytree(src, os.path.join(dst, name), symlinks=False)
         else:
-            os.makedirs(std_inc, exist_ok=True)
-            shutil.copy2(src, std_inc)
+            shutil.copy2(src, dst)
     if not os.path.isdir("/usr/include/c++/v1"):
         sys.exit("libc++ headers not found")
     shutil.copytree("/usr/include/c++/v1", os.path.join(rt_inc, "c++", "v1"))
@@ -46,7 +52,7 @@ def collect_base(out):
     if copy_files(["/usr/lib/" + n for n in CRT_FILES + LIB_FILES], std_lib) == 0:
         sys.exit("musl libraries not found")
     copy_files(["/lib/ld-musl-*.so.1"], std_lib)
-    copy_files(["/usr/lib/libc++*.a", "/usr/lib/libunwind*.a"], rt_lib)
+    copy_files(["/usr/lib/libc++.a", "/usr/lib/libc++abi.a", "/usr/lib/libunwind.a"], rt_lib)
     copy_files(["/usr/lib/gcc/*/*/libgcc.a", "/usr/lib/gcc/*/*/libgcc_eh.a",
                 "/usr/lib/gcc/*/*/crtbegin*.o", "/usr/lib/gcc/*/*/crtend*.o"], rt_lib)
     if not glob.glob(os.path.join(rt_lib, "libc++.a")):
