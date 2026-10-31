@@ -1,6 +1,10 @@
 import argparse, hashlib, json, lzma, os, subprocess, sys, tarfile
 
 TARGETS = [
+    {"id": "linux-x86_64", "script": "linux", "arg": "x86_64", "platform": "linux/amd64"},
+    {"id": "linux-arm64", "script": "linux", "arg": "arm64", "platform": "linux/arm64"},
+    {"id": "linux-x86", "script": "linux", "arg": "x86", "platform": "linux/386"},
+    {"id": "linux-arm", "script": "linux", "arg": "arm", "platform": "linux/arm/v7"},
     {"id": "ps2", "script": "ps2", "arg": "ps2dev-env"},
     {"id": "ps1", "script": "ps1", "arg": "0.24"},
     {"id": "windows-x86_64", "script": "windows", "arg": "x86_64"},
