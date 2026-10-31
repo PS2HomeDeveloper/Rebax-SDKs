@@ -22,7 +22,7 @@ jobs:
 
   build:
     needs: plan
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner || 'ubuntu-24.04' }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -47,6 +47,10 @@ jobs:
       - name: Set up emulation
         if: matrix.script == 'linux'
         uses: docker/setup-qemu-action@v3
+
+      - name: Install build tools (macOS)
+        if: matrix.script == 'macos'
+        run: brew install ninja cmake
 
       - name: Install Android NDK
         if: matrix.script == 'android'
