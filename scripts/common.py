@@ -5,9 +5,6 @@ TARGETS = [
     {"id": "ps1", "script": "ps1", "arg": "0.24"},
     {"id": "windows-x86_64", "script": "windows", "arg": "x86_64"},
     {"id": "windows-x86", "script": "windows", "arg": "x86"},
-    {"id": "windows-arm64", "script": "windows", "arg": "arm64"},
-    {"id": "windows-x86_64", "script": "windows", "arg": "x86_64"},
-    {"id": "windows-x86", "script": "windows", "arg": "x86"},
     {"id": "windows-arm", "script": "windows", "arg": "arm"},
     {"id": "windows-arm64", "script": "windows", "arg": "arm64"},
     {"id": "android-arm64-v8a", "script": "android", "arg": "arm64-v8a"},
@@ -60,7 +57,7 @@ def sha256(path):
 def pack(root, top, name, dest):
     os.makedirs(dest, exist_ok=True)
     archive = os.path.join(dest, name + ".tar.xz")
-    with tarfile.open(archive, "w:xz", preset=9 | lzma.PRESET_EXTREME) as tf:
+    with tarfile.open(archive, "w:xz", format=tarfile.GNU_FORMAT, dereference=True, preset=9 | lzma.PRESET_EXTREME) as tf:
         tf.add(root, arcname=top)
     with open(os.path.join(dest, name + ".tree.txt"), "w", encoding="utf-8") as f:
         f.write(list_tree(root, top))
