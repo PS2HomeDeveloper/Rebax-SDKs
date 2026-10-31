@@ -7,7 +7,7 @@ on:
         description: Build only this target id (empty = all)
         default: ""
       release_tag:
-        description: Publish a release with this tag (empty = artifacts only)
+        description: Upload to this release tag (empty = the latest release)
         default: ""
 
 jobs:
@@ -79,7 +79,7 @@ jobs:
           fi
 
       - name: Pack
-        run: python3 scripts/common.py pack --root sdk-out --top "sdk-${{ matrix.id }}" --name "sdk-${{ matrix.id }}" --dest dist
+        run: python3 scripts/common.py pack --root sdk-out --top "sdk-${{ matrix.id }}" --name "rebax-sdk-${{ matrix.id }}" --dest dist
 
       - uses: actions/upload-artifact@v4
         with:
@@ -111,10 +111,13 @@ jobs:
 
   release:
     needs: build
-    if: inputs.release_tag != ''
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -122,12 +125,14 @@ jobs:
           python-version: "3.12"
       - uses: actions/download-artifact@v4
         with:
-          pattern: "{pkg,tree}-*"
+          pattern: pkg-*
           path: dist
           merge-multiple: true
-      - name: Manifest
-        run: python3 scripts/common.py manifest --dir dist
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.release_tag }}
-          files: dist/*
+      - name: Publish to the latest release
+        run: |
+          tag="${{ inputs.release_tag }}"
+          if [ -z "$tag" ]; then tag=$(gh release view --json tagName -q .tagName 2>/dev/null || true); fi
+          if [ -z "$tag" ]; then tag=v1.0.0; gh release create "$tag" --title "$tag" --notes ""; fi
+          gh release download "$tag" --pattern manifest.json --dir dist 2>/dev/null || true
+          python3 scripts/common.py manifest --dir dist
+          gh release upload "$tag" dist/*.tar.xz dist/manifest.json --clobber
