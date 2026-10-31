@@ -44,6 +44,12 @@ jobs:
           docker cp "$id:/usr/local/ps2dev" ps2dev-env
           docker rm "$id"
 
+      - name: Install build tools
+        if: matrix.script == 'windows'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake curl
+
       - name: Install Android NDK
         if: matrix.script == 'android'
         env:
@@ -53,6 +59,12 @@ jobs:
           sudo apt-get install -y build-essential cmake curl
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" "ndk;$NDK_VERSION" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Install build tools
+        if: matrix.script == 'windows'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake curl
 
       - name: Collect the SDK
         run: |
