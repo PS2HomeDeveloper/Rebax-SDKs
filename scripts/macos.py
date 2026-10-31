@@ -5,6 +5,7 @@ import common
 SDL2_VERSION = "2.32.10"
 DEPLOYMENT = "11.0"
 
+IGNORE = shutil.ignore_patterns("*.modulemap", "*.apinotes", "*.swiftcrossimport")
 SKIP_PREFIXES = ("ruby", "python", "tcl", "tk", "perl", "php", "apache")
 SKIP_INCLUDE = ["c++", "_modules", "AppleArchive", "EndpointSecurity", "Spatial", "apr-1", "cups", "curl",
                 "editline", "ffi", "gssapi", "hvf", "krb5", "ldap", "libexslt", "libxml", "libxml2",
@@ -31,7 +32,7 @@ PROFILES = {
               "cmake": []},
     "ios": {"sdk": "iphoneos", "rt": "libclang_rt.ios.a",
             "std_frameworks": ["CoreFoundation", "Foundation", "Security", "CoreGraphics", "ImageIO",
-                               "MobileCoreServices", "UIKit", "SystemConfiguration"],
+                               "MobileCoreServices", "SystemConfiguration"],
             "gfx_frameworks": ["UIKit", "OpenGLES", "Metal", "QuartzCore", "AVFoundation", "AVFAudio",
                                "AudioToolbox", "CoreAudio", "CoreAudioTypes", "CoreVideo", "CoreMotion",
                                "CoreHaptics", "GameController", "CoreMedia", "CoreText", "CoreImage",
@@ -58,7 +59,7 @@ def flatten_framework(src, dst):
     os.makedirs(dst, exist_ok=True)
     headers = os.path.join(base, "Headers")
     if os.path.isdir(headers):
-        shutil.copytree(headers, os.path.join(dst, "Headers"), symlinks=False)
+        shutil.copytree(headers, os.path.join(dst, "Headers"), symlinks=False, ignore=IGNORE)
     for tbd in glob.glob(os.path.join(base, "*.tbd")) + glob.glob(os.path.join(src, "*.tbd")):
         shutil.copy2(tbd, os.path.join(dst, os.path.basename(tbd)))
         if os.path.basename(tbd) == name + ".tbd" and not os.path.exists(os.path.join(dst, name)):
@@ -89,13 +90,13 @@ def collect_base(sdk, out, rt_name, std_frameworks):
             continue
         src = os.path.join(inc, name)
         if os.path.isdir(src):
-            shutil.copytree(src, os.path.join(std_inc, name), symlinks=False)
+            shutil.copytree(src, os.path.join(std_inc, name), symlinks=False, ignore=IGNORE)
         else:
             shutil.copy2(src, std_inc)
     cxx = os.path.join(inc, "c++")
     if not os.path.isdir(cxx):
         sys.exit("libc++ headers not found in the SDK")
-    shutil.copytree(cxx, os.path.join(out, "runtime", "include", "c++"), symlinks=False)
+    shutil.copytree(cxx, os.path.join(out, "runtime", "include", "c++"), symlinks=False, ignore=IGNORE)
 
     std_lib = os.path.join(out, "standard", "lib")
     rt_lib = os.path.join(out, "runtime", "lib")
@@ -110,7 +111,7 @@ def collect_base(sdk, out, rt_name, std_frameworks):
             shutil.copy2(path, os.path.join(std_lib, name))
     system = os.path.join(ulib, "system")
     if os.path.isdir(system):
-        shutil.copytree(system, os.path.join(std_lib, "system"), symlinks=False)
+        shutil.copytree(system, os.path.join(std_lib, "system"), symlinks=False, ignore=IGNORE)
     if not os.path.exists(os.path.join(std_lib, "libSystem.tbd")):
         sys.exit("libSystem.tbd not found")
 
