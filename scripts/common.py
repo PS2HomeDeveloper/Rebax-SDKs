@@ -7,6 +7,8 @@ TARGETS = [
     {"id": "linux-arm", "script": "linux", "arg": "arm", "platform": "linux/arm/v7"},
     {"id": "macos-x86_64", "script": "macos", "arg": "x86_64", "runner": "macos-15"},
     {"id": "macos-arm64", "script": "macos", "arg": "arm64", "runner": "macos-15"},
+    {"id": "ios-arm64", "script": "ios", "arg": "arm64", "runner": "macos-15"},
+    {"id": "ios-simulator-x86_64", "script": "ios", "arg": "simulator-x86_64", "runner": "macos-15"},
     {"id": "ps2", "script": "ps2", "arg": "ps2dev-env"},
     {"id": "ps1", "script": "ps1", "arg": "0.24"},
     {"id": "windows-x86_64", "script": "windows", "arg": "x86_64"},

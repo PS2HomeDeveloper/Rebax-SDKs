@@ -6,8 +6,17 @@ SDL2_VERSION = "2.32.10"
 DEPLOYMENT = "11.0"
 
 SKIP_PREFIXES = ("ruby", "python", "tcl", "tk", "perl", "php", "apache")
-SKIP_INCLUDE = ["c++", "module.modulemap"]
-RUNTIME_LIBS = ["libc++.tbd", "libc++abi.tbd", "libunwind.tbd"]
+SKIP_INCLUDE = ["c++", "_modules", "AppleArchive", "EndpointSecurity", "Spatial", "apr-1", "cups", "curl",
+                "editline", "ffi", "gssapi", "hvf", "krb5", "ldap", "libexslt", "libxml", "libxml2",
+                "libxslt", "net-snmp", "pcap", "readline", "sasl", "tidy", "xar"]
+SKIP_SUFFIXES = (".modulemap", ".apinotes", ".swiftcrossimport")
+RUNTIME_LIBS = ["libc++.tbd", "libc++.1.tbd", "libc++abi.tbd", "libunwind.tbd"]
+STANDARD_LIBS = ["libSystem.tbd", "libSystem.B.tbd", "libc.tbd", "libm.tbd", "libdl.tbd", "libpthread.tbd",
+                 "libutil.tbd", "libresolv.tbd", "libresolv.9.tbd", "libinfo.tbd", "libobjc.tbd",
+                 "libobjc.A.tbd", "libz.tbd", "libz.1.tbd", "libiconv.tbd", "libiconv.2.tbd",
+                 "libcharset.tbd", "libcharset.1.tbd", "libcompression.tbd", "libsqlite3.tbd",
+                 "libxml2.tbd", "libxml2.2.tbd", "libbz2.tbd", "libbz2.1.0.tbd", "libicucore.tbd",
+                 "libicucore.A.tbd", "libgcc_s.1.tbd", "libcurses.tbd", "libncurses.tbd"]
 
 STANDARD_FRAMEWORKS = ["CoreFoundation", "Foundation", "CoreServices", "Security", "IOKit",
                        "ApplicationServices", "CoreGraphics", "ImageIO"]
@@ -15,6 +24,27 @@ GRAPHICS_FRAMEWORKS = ["Cocoa", "AppKit", "CoreAudio", "AudioToolbox", "CoreVide
                        "Metal", "QuartzCore", "ForceFeedback", "Carbon", "CoreHaptics",
                        "GameController", "CoreMedia", "CoreText", "CoreImage", "CoreData",
                        "AudioUnit", "CoreAudioTypes", "CoreMIDI", "UniformTypeIdentifiers"]
+
+
+PROFILES = {
+    "macos": {"sdk": "macosx", "rt": "libclang_rt.osx.a", "std_frameworks": None, "gfx_frameworks": None,
+              "cmake": []},
+    "ios": {"sdk": "iphoneos", "rt": "libclang_rt.ios.a",
+            "std_frameworks": ["CoreFoundation", "Foundation", "Security", "CoreGraphics", "ImageIO",
+                               "MobileCoreServices", "UIKit", "SystemConfiguration"],
+            "gfx_frameworks": ["UIKit", "OpenGLES", "Metal", "QuartzCore", "AVFoundation", "AVFAudio",
+                               "AudioToolbox", "CoreAudio", "CoreAudioTypes", "CoreVideo", "CoreMotion",
+                               "CoreHaptics", "GameController", "CoreMedia", "CoreText", "CoreImage",
+                               "CoreBluetooth", "UniformTypeIdentifiers"],
+            "cmake": ["-DCMAKE_SYSTEM_NAME=iOS", "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY"]},
+    "iossim": {"sdk": "iphonesimulator", "rt": "libclang_rt.iossim.a", "std_frameworks": None,
+               "gfx_frameworks": None,
+               "cmake": ["-DCMAKE_SYSTEM_NAME=iOS", "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY"]},
+}
+PROFILES["iossim"]["std_frameworks"] = PROFILES["ios"]["std_frameworks"]
+PROFILES["iossim"]["gfx_frameworks"] = PROFILES["ios"]["gfx_frameworks"]
+PROFILES["macos"]["std_frameworks"] = STANDARD_FRAMEWORKS
+PROFILES["macos"]["gfx_frameworks"] = GRAPHICS_FRAMEWORKS
 
 
 def capture(cmd):
@@ -50,12 +80,12 @@ def copy_frameworks(sdk, names, dst):
         flatten_framework(src, os.path.join(dst, name + ".framework"))
 
 
-def collect_base(sdk, out):
+def collect_base(sdk, out, rt_name, std_frameworks):
     inc = os.path.join(sdk, "usr", "include")
     std_inc = os.path.join(out, "standard", "include")
     os.makedirs(std_inc)
     for name in sorted(os.listdir(inc)):
-        if name in SKIP_INCLUDE or name.startswith(SKIP_PREFIXES):
+        if name in SKIP_INCLUDE or name.startswith(SKIP_PREFIXES) or name.startswith(".") or name.endswith(SKIP_SUFFIXES):
             continue
         src = os.path.join(inc, name)
         if os.path.isdir(src):
@@ -74,7 +104,10 @@ def collect_base(sdk, out):
     ulib = os.path.join(sdk, "usr", "lib")
     for path in sorted(glob.glob(os.path.join(ulib, "*.tbd"))):
         name = os.path.basename(path)
-        shutil.copy2(path, os.path.join(rt_lib if name in RUNTIME_LIBS else std_lib, name))
+        if name in RUNTIME_LIBS:
+            shutil.copy2(path, os.path.join(rt_lib, name))
+        elif name in STANDARD_LIBS:
+            shutil.copy2(path, os.path.join(std_lib, name))
     system = os.path.join(ulib, "system")
     if os.path.isdir(system):
         shutil.copytree(system, os.path.join(std_lib, "system"), symlinks=False)
@@ -82,15 +115,15 @@ def collect_base(sdk, out):
         sys.exit("libSystem.tbd not found")
 
     resource = capture(["clang", "-print-resource-dir"])
-    rt = os.path.join(resource, "lib", "darwin", "libclang_rt.osx.a")
+    rt = os.path.join(resource, "lib", "darwin", rt_name)
     if not os.path.isfile(rt):
-        sys.exit("libclang_rt.osx.a not found: " + rt)
+        sys.exit("not found: " + rt)
     shutil.copy2(rt, rt_lib)
 
-    copy_frameworks(sdk, STANDARD_FRAMEWORKS, os.path.join(out, "standard", "Frameworks"))
+    copy_frameworks(sdk, std_frameworks, os.path.join(out, "standard", "Frameworks"))
 
 
-def collect_graphics(sdk, arch, out, work):
+def collect_graphics(sdk, arch, out, work, profile):
     prefix = os.path.join(work, "prefix")
     archive = os.path.join(work, "SDL2.tar.gz")
     url = "https://github.com/libsdl-org/SDL/releases/download/release-%s/SDL2-%s.tar.gz" % (SDL2_VERSION, SDL2_VERSION)
@@ -102,7 +135,7 @@ def collect_graphics(sdk, arch, out, work):
     common.run(["cmake", "-S", os.path.join(work, "SDL2-" + SDL2_VERSION), "-B", build, "-G", "Ninja",
                 "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_INSTALL_PREFIX=" + prefix,
                 "-DCMAKE_OSX_ARCHITECTURES=" + arch, "-DCMAKE_OSX_DEPLOYMENT_TARGET=" + DEPLOYMENT,
-                "-DCMAKE_OSX_SYSROOT=" + sdk,
+                "-DCMAKE_OSX_SYSROOT=" + sdk] + profile["cmake"] + [
                 "-DSDL_SHARED=OFF", "-DSDL_STATIC=ON", "-DSDL_TEST=OFF", "-DSDL_TESTS=OFF"])
     common.run(["cmake", "--build", build, "--parallel"])
     common.run(["cmake", "--install", build])
@@ -116,20 +149,21 @@ def collect_graphics(sdk, arch, out, work):
         shutil.copy2(src, os.path.join(gfx, "lib"))
     for path in glob.glob(os.path.join(gfx, "include", "SDL2", "SDL_test*.h")):
         os.remove(path)
-    copy_frameworks(sdk, GRAPHICS_FRAMEWORKS, os.path.join(gfx, "Frameworks"))
+    copy_frameworks(sdk, profile["gfx_frameworks"], os.path.join(gfx, "Frameworks"))
 
 
-def build(arch, out, work):
+def build(arch, out, work, platform="macos"):
+    profile = PROFILES[platform]
     for d in (out, work):
         if os.path.exists(d):
             shutil.rmtree(d)
     os.makedirs(work)
-    sdk = os.path.realpath(capture(["xcrun", "--sdk", "macosx", "--show-sdk-path"]))
+    sdk = os.path.realpath(capture(["xcrun", "--sdk", profile["sdk"], "--show-sdk-path"]))
     print("sdk: " + sdk, flush=True)
-    collect_base(sdk, out)
-    collect_graphics(sdk, arch, out, work)
+    collect_base(sdk, out, profile["rt"], profile["std_frameworks"])
+    collect_graphics(sdk, arch, out, work, profile)
     with open(os.path.join(out, "SOURCE.txt"), "w") as f:
-        f.write("macOS SDK: " + os.path.basename(sdk) + "\narch " + arch + "\nSDL2 " + SDL2_VERSION +
+        f.write("Apple SDK: " + os.path.basename(sdk) + "\narch " + arch + "\nSDL2 " + SDL2_VERSION +
                 " static\ndeployment target " + DEPLOYMENT + "\n")
 
 
