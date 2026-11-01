@@ -32,10 +32,15 @@ EE_TRIPLE = "mips64r5900el-ps2-elf"
 
 def copy_libc(env_dir, dst_root):
     base = os.path.join(env_dir, "ee", EE_TRIPLE)
-    pairs = [("include", shutil.ignore_patterns("c++")),
-             ("lib", shutil.ignore_patterns("ldscripts", "libstdc++*", "libsupc++*", "crt0.o"))]
-    for name, ignore in pairs:
+    for name, skip in (("include", ("c++",)), ("lib", ("ldscripts", "libstdc++*", "libsupc++*", "crt0.o"))):
         src = os.path.join(base, name)
+        fixed = shutil.ignore_patterns(*skip)
+
+        def ignore(folder, names, src_dir=src, fixed=fixed):
+            gone = set(fixed(folder, names))
+            gone.update(n for n in names if os.path.islink(os.path.join(folder, n)))
+            return gone
+
         if not os.path.isdir(src):
             sys.exit("missing newlib folder: " + src)
         shutil.copytree(src, os.path.join(dst_root, name), symlinks=True, ignore=ignore)
