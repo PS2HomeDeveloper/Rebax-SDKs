@@ -27,10 +27,28 @@ def copy_parts(src_root, dst_root, parts, required):
         print("copied: " + part)
 
 
+EE_TRIPLE = "mips64r5900el-ps2-elf"
+
+
+def copy_libc(env_dir, dst_root):
+    base = os.path.join(env_dir, "ee", EE_TRIPLE)
+    pairs = [("include", shutil.ignore_patterns("c++")),
+             ("lib", shutil.ignore_patterns("ldscripts", "libstdc++*", "libsupc++*", "crt0.o"))]
+    for name, ignore in pairs:
+        src = os.path.join(base, name)
+        if not os.path.isdir(src):
+            sys.exit("missing newlib folder: " + src)
+        shutil.copytree(src, os.path.join(dst_root, name), symlinks=True, ignore=ignore)
+        print("copied: libc/" + name)
+    if not os.path.isfile(os.path.join(dst_root, "lib", "libc.a")):
+        sys.exit("libc.a not found")
+
+
 def build(env_dir, out, source):
     if os.path.exists(out):
         shutil.rmtree(out)
     copy_parts(os.path.join(env_dir, "ps2sdk"), os.path.join(out, "standard"), STANDARD, STANDARD_REQUIRED)
+    copy_libc(env_dir, os.path.join(out, "standard", "libc"))
     copy_parts(os.path.join(env_dir, "gsKit"), os.path.join(out, "graphics"), GRAPHICS, GRAPHICS)
     with open(os.path.join(out, "SOURCE.txt"), "w") as f:
         f.write("ps2dev image: " + source + "\n")
