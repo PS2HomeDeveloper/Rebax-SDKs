@@ -32,7 +32,7 @@ EE_TRIPLE = "mips64r5900el-ps2-elf"
 
 def copy_libc(env_dir, dst_root):
     base = os.path.join(env_dir, "ee", EE_TRIPLE)
-    for name, skip in (("include", ("c++",)), ("lib", ("ldscripts", "libstdc++*", "libsupc++*", "crt0.o"))):
+    for name, skip in (("include", ("c++",)), ("lib", ("ldscripts", "libstdc++*", "libsupc++*", "libatomic*", "crt0.o"))):
         src = os.path.join(base, name)
         fixed = shutil.ignore_patterns(*skip)
 
