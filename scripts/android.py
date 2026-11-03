@@ -124,6 +124,15 @@ def build_graphics(abi, ndk, llvm, out, work):
             count += 1
     if count == 0:
         sys.exit("no shared libraries were installed for graphics")
+    java_src = os.path.join(work, "SDL2-" + SDL2_VERSION, "android-project", "app", "src", "main", "java", "org", "libsdl", "app")
+    java_files = sorted(glob.glob(os.path.join(java_src, "*.java")))
+    if not java_files:
+        sys.exit("SDL2 Android java sources not found: " + java_src)
+    java_dst = os.path.join(gfx, "java", "org", "libsdl", "app")
+    os.makedirs(java_dst)
+    for path in java_files:
+        shutil.copy2(path, java_dst)
+    print("copied %d SDL2 java files" % len(java_files))
 
 
 PRUNE = [
