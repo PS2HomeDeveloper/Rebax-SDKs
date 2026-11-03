@@ -4,16 +4,16 @@ import common
 
 SDL2_VERSION = "2.32.10"
 
-BASE_PACKAGES = ["musl-dev", "linux-headers", "gcc", "libc++-dev", "libc++-static",
+BASE_PACKAGES = ["binutils", "musl-dev", "linux-headers", "gcc", "libc++-dev", "libc++-static",
                  "llvm-libunwind-dev", "llvm-libunwind-static"]
 BUILD_PACKAGES = ["cmake", "ninja", "g++", "make", "libx11-dev", "libxext-dev", "libxrandr-dev",
                   "libxcursor-dev", "libxi-dev", "libxfixes-dev", "libxrender-dev", "libxscrnsaver-dev",
                   "alsa-lib-dev", "mesa-dev", "eudev-dev"]
 COMPILER_HEADERS = ["float.h", "iso646.h", "stdalign.h", "stdarg.h", "stdbool.h", "stddef.h",
                     "stdnoreturn.h", "tgmath.h"]
-SKIP_HEADERS = ["c++", "python3.12"]
+SKIP_HEADERS = ["c++", "python3.12", "mach-o"]
 RUNTIME_HEADERS = ["__libunwind_config.h", "libunwind.h", "libunwind.modulemap", "unwind.h",
-                   "unwind_arm_ehabi.h", "unwind_itanium.h", "mach-o"]
+                   "unwind_arm_ehabi.h", "unwind_itanium.h"]
 CRT_FILES = ["crt1.o", "crti.o", "crtn.o", "Scrt1.o", "rcrt1.o"]
 LIB_FILES = ["libc.a", "libc.so", "libm.a", "libpthread.a", "libdl.a", "librt.a", "libutil.a",
              "libresolv.a", "libcrypt.a", "libxnet.a"]
@@ -84,6 +84,15 @@ def collect_graphics(out, work):
         os.remove(path)
 
 
+def strip_debug(out):
+    count = 0
+    for pattern in ("standard/lib/*.a", "standard/lib/*.o", "runtime/lib/*.a", "runtime/lib/*.o", "graphics/lib/*.a"):
+        for path in sorted(glob.glob(os.path.join(out, pattern))):
+            common.run(["strip", "--strip-debug", path])
+            count += 1
+    print("stripped debug info from %d files" % count)
+
+
 def build(arch, out, work):
     for d in (out, work):
         if os.path.exists(d):
@@ -93,6 +102,7 @@ def build(arch, out, work):
     collect_base(out)
     common.run(["apk", "add", "--no-cache"] + BUILD_PACKAGES)
     collect_graphics(out, work)
+    strip_debug(out)
     with open(os.path.join(out, "SOURCE.txt"), "w") as f:
         f.write("alpine musl, arch " + arch + "\nSDL2 " + SDL2_VERSION + " static\n")
 
