@@ -78,6 +78,24 @@ jobs:
             python3 scripts/${{ matrix.script }}.py --arg "${{ matrix.arg }}" --out sdk-out
           fi
 
+      - name: Build classes.dex for the Android SDK
+        if: matrix.script == 'android'
+        env:
+          PLATFORM_API: "34"
+          BUILD_TOOLS: 34.0.0
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" "platforms;android-$PLATFORM_API" "build-tools;$BUILD_TOOLS" > /dev/null
+          jar_file="$ANDROID_HOME/platforms/android-$PLATFORM_API/android.jar"
+          d8="$ANDROID_HOME/build-tools/$BUILD_TOOLS/d8"
+          src="sdk-out/graphics/java"
+          test -n "$(find "$src" -name '*.java')" || { echo "No SDL Java sources in $src"; exit 1; }
+          mkdir -p work/classes sdk-out/graphics/dex
+          javac -nowarn -encoding UTF-8 -source 8 -target 8 -classpath "$jar_file" -d work/classes $(find "$src" -name '*.java')
+          jar cf work/classes.jar -C work/classes .
+          "$d8" --release --min-api 21 --lib "$jar_file" --output work work/classes.jar
+          cp work/classes.dex sdk-out/graphics/dex/classes.dex
+          ls -l sdk-out/graphics/dex/classes.dex
+
       - name: Pack
         run: python3 scripts/common.py pack --root sdk-out --top "${{ matrix.id }}" --name "rebax-sdk-${{ matrix.id }}" --dest dist
 
