@@ -49,11 +49,26 @@ def copy_libc(env_dir, dst_root):
         sys.exit("libc.a not found")
 
 
+def copy_startup(env_dir, standard_root):
+    for chip, triple, folder in (("ee", EE_TRIPLE, "ee"), ("iop", "mipsel-none-elf", "iop")):
+        src = os.path.join(env_dir, chip, triple, "lib", "crt0.o")
+        if not os.path.isfile(src):
+            if chip == "ee":
+                sys.exit("startup object not found: " + src)
+            print("skip (not found): " + src)
+            continue
+        dst = os.path.join(standard_root, folder, "startup")
+        os.makedirs(dst, exist_ok=True)
+        shutil.copy2(src, os.path.join(dst, "crt0.o"))
+        print("copied: " + folder + "/startup/crt0.o")
+
+
 def build(env_dir, out, source):
     if os.path.exists(out):
         shutil.rmtree(out)
     copy_parts(os.path.join(env_dir, "ps2sdk"), os.path.join(out, "standard"), STANDARD, STANDARD_REQUIRED)
     copy_libc(env_dir, os.path.join(out, "standard", "libc"))
+    copy_startup(env_dir, os.path.join(out, "standard"))
     copy_parts(os.path.join(env_dir, "gsKit"), os.path.join(out, "graphics"), GRAPHICS, GRAPHICS)
     with open(os.path.join(out, "SOURCE.txt"), "w") as f:
         f.write("ps2dev image: " + source + "\n")
