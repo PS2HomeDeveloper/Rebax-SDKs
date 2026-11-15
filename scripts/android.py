@@ -79,6 +79,58 @@ def fetch(url, dest):
     urllib.request.urlretrieve(url, dest)
 
 
+GAME_ACTIVITY = """package org.rebax.game;
+
+import org.libsdl.app.SDLActivity;
+
+public class GameActivity extends SDLActivity {
+    @Override
+    protected String[] getLibraries() {
+        return new String[] { "main" };
+    }
+}
+"""
+
+
+def build_static_graphics(abi, ndk, llvm, gfx, work, cc, iconv_tar):
+    info = ABIS[abi]
+    prefix = os.path.join(work, "prefix-static")
+    os.makedirs(prefix, exist_ok=True)
+    flags = "-ffunction-sections -fdata-sections"
+    common.run(["cmake", "-S", os.path.join(work, "SDL2-" + SDL2_VERSION), "-B", os.path.join(work, "sdl2-static-build"),
+                "-DCMAKE_TOOLCHAIN_FILE=" + os.path.join(ndk, "build", "cmake", "android.toolchain.cmake"),
+                "-DANDROID_ABI=" + abi, "-DANDROID_PLATFORM=android-" + API, "-DANDROID_STL=c++_static",
+                "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_INSTALL_PREFIX=" + prefix,
+                "-DCMAKE_C_FLAGS=" + flags, "-DCMAKE_CXX_FLAGS=" + flags,
+                "-DSDL_SHARED=OFF", "-DSDL_STATIC=ON", "-DSDL_STATIC_PIC=ON", "-DSDL_TEST=OFF"])
+    common.run(["cmake", "--build", os.path.join(work, "sdl2-static-build"), "--parallel"])
+    common.run(["cmake", "--install", os.path.join(work, "sdl2-static-build")])
+
+    iconv_dir = os.path.join(work, "iconv-static")
+    os.makedirs(iconv_dir, exist_ok=True)
+    with tarfile.open(iconv_tar) as tf:
+        tf.extractall(iconv_dir)
+    src = os.path.join(iconv_dir, "libiconv-" + LIBICONV_VERSION)
+    build_triple = subprocess.run(["gcc", "-dumpmachine"], capture_output=True, text=True, check=True).stdout.strip()
+    common.run(["./configure", "--build=" + build_triple, "--host=" + info["clang"], "--prefix=" + prefix,
+                "--disable-shared", "--enable-static", "--disable-nls",
+                "CC=" + cc, "CPPFLAGS=-DO_BINARY=0", "CFLAGS=-fPIC -DO_BINARY=0 " + flags], cwd=src)
+    common.run(["make", "-j4"], cwd=src)
+    common.run(["make", "install"], cwd=src)
+
+    dst = os.path.join(gfx, "static", "lib")
+    os.makedirs(dst)
+    count = 0
+    for name in ("libSDL2.a", "libiconv.a", "libcharset.a"):
+        path = os.path.join(prefix, "lib", name)
+        if os.path.isfile(path):
+            shutil.copy2(path, os.path.join(dst, name))
+            count += 1
+    if not os.path.isfile(os.path.join(dst, "libSDL2.a")):
+        sys.exit("static libSDL2.a was not produced")
+    print("copied %d static libraries" % count)
+
+
 def build_graphics(abi, ndk, llvm, out, work):
     info = ABIS[abi]
     prefix = os.path.join(work, "prefix")
@@ -124,6 +176,7 @@ def build_graphics(abi, ndk, llvm, out, work):
             count += 1
     if count == 0:
         sys.exit("no shared libraries were installed for graphics")
+    build_static_graphics(abi, ndk, llvm, gfx, work, cc, iconv_tar)
     java_src = os.path.join(work, "SDL2-" + SDL2_VERSION, "android-project", "app", "src", "main", "java", "org", "libsdl", "app")
     java_files = sorted(glob.glob(os.path.join(java_src, "*.java")))
     if not java_files:
@@ -133,6 +186,10 @@ def build_graphics(abi, ndk, llvm, out, work):
     for path in java_files:
         shutil.copy2(path, java_dst)
     print("copied %d SDL2 java files" % len(java_files))
+    game_dst = os.path.join(gfx, "java", "org", "rebax", "game")
+    os.makedirs(game_dst)
+    with open(os.path.join(game_dst, "GameActivity.java"), "w") as f:
+        f.write(GAME_ACTIVITY)
 
 
 PRUNE = [
