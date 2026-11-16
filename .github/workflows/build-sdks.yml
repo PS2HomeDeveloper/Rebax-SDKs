@@ -96,6 +96,32 @@ jobs:
           cp work/classes.dex sdk-out/graphics/dex/classes.dex
           ls -l sdk-out/graphics/dex/classes.dex
 
+      - name: Validate SDK layout
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          root = "sdk-out"
+          required = []
+          if "${{ matrix.script }}" == "android":
+              runtime_dir = {
+                  "arm64-v8a": "aarch64-linux-android",
+                  "armeabi-v7a": "arm-linux-androideabi",
+                  "x86": "i686-linux-android",
+                  "x86_64": "x86_64-linux-android"}["${{ matrix.arg }}"]
+              required = ["graphics/static/lib/libSDL2.a", "runtime/lib/%s/libc++_static.a" % runtime_dir,
+                  "runtime/lib/%s/libc++abi.a" % runtime_dir,
+                  "graphics/dex/classes.dex"]
+          elif "${{ matrix.script }}" == "windows":
+              required = ["graphics/lib/libSDL2.a", "graphics/lib/libSDL2.dll.a", "graphics/bin/SDL2.dll"]
+          elif "${{ matrix.script }}" == "linux":
+              required = ["graphics/lib/libSDL2.a", "standard/lib/crt1.o"]
+          for relative in required:
+              path = os.path.join(root, relative)
+              if not os.path.isfile(path):
+                  raise SystemExit("missing SDK file: " + path)
+          print("validated", len(required), "SDK files")
+          PY
+
       - name: Pack
         run: python3 scripts/common.py pack --root sdk-out --top "${{ matrix.id }}" --name "rebax-sdk-${{ matrix.id }}" --dest dist
 
