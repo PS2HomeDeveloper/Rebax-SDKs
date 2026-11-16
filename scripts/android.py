@@ -1,4 +1,4 @@
-import argparse, glob, os, shutil, subprocess, sys, tarfile, urllib.request
+import argparse, glob, os, shutil, subprocess, sys, tarfile, time, urllib.request
 
 import common
 
@@ -80,9 +80,21 @@ def build_runtime(abi, llvm, sysroot, out):
         sys.exit("no runtime libraries found")
 
 
-def fetch(url, dest):
-    print("download " + url, flush=True)
-    urllib.request.urlretrieve(url, dest)
+def fetch(urls, dest):
+    if isinstance(urls, str):
+        urls = [urls]
+    last = None
+    for attempt in range(4):
+        for url in urls:
+            print("download " + url, flush=True)
+            try:
+                urllib.request.urlretrieve(url, dest)
+                return
+            except Exception as error:
+                last = error
+                print("failed: %s" % error, flush=True)
+        time.sleep(5 * (attempt + 1))
+    sys.exit("download failed: %s" % last)
 
 
 GAME_ACTIVITY = """package org.rebax.game;
@@ -154,7 +166,7 @@ def build_graphics(abi, ndk, llvm, out, work):
     common.run(["cmake", "--install", os.path.join(work, "sdl2-build")])
 
     iconv_tar = os.path.join(work, "libiconv.tar.gz")
-    fetch("https://ftp.gnu.org/gnu/libiconv/libiconv-%s.tar.gz" % LIBICONV_VERSION, iconv_tar)
+    fetch(["https://ftp.gnu.org/gnu/libiconv/libiconv-%s.tar.gz" % LIBICONV_VERSION, "https://ftpmirror.gnu.org/libiconv/libiconv-%s.tar.gz" % LIBICONV_VERSION, "https://mirrors.kernel.org/gnu/libiconv/libiconv-%s.tar.gz" % LIBICONV_VERSION, "https://mirror.freedif.org/GNU/libiconv/libiconv-%s.tar.gz" % LIBICONV_VERSION], iconv_tar)
     with tarfile.open(iconv_tar) as tf:
         tf.extractall(work)
     cc = os.path.join(llvm, "bin", info["clang"] + API + "-clang")
