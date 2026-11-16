@@ -3,6 +3,7 @@ import argparse, os, shutil, sys, urllib.request, zipfile
 GRAPHICS_HEADERS = ["psxgpu.h", "psxgte.h", "inline_c.h", "inline_s.inc", "gtereg.inc"]
 GRAPHICS_LIBS = ("libpsxgpu_", "libpsxgte_")
 VARIANTS = ["release", "debug"]
+TOOLS = ["elf2x", "mkpsxiso"]
 
 
 def fetch(version, work):
@@ -46,6 +47,19 @@ def build(version, out):
             target = gfx_lib if name.startswith(GRAPHICS_LIBS) else std_lib
             copy_file(os.path.join(lib_src, variant, name), os.path.join(target, variant))
     shutil.copytree(os.path.join(lib_src, "ldscripts"), os.path.join(std_lib, "ldscripts"))
+
+    for name in TOOLS:
+        source = os.path.join(root, "bin", name)
+        if os.path.isfile(source):
+            copy_file(source, os.path.join(out, "bin"))
+            os.chmod(os.path.join(out, "bin", name), 0o755)
+
+    target_root = os.path.join(root, "mipsel-none-elf")
+    if os.path.isdir(target_root):
+        shutil.copytree(target_root, os.path.join(out, "standard", "mipsel-none-elf"), symlinks=True)
+    gcc_root = os.path.join(root, "lib", "gcc", "mipsel-none-elf")
+    if os.path.isdir(gcc_root):
+        shutil.copytree(gcc_root, os.path.join(out, "standard", "lib", "gcc", "mipsel-none-elf"), symlinks=True)
 
     with open(os.path.join(out, "SOURCE.txt"), "w") as f:
         f.write("PSn00bSDK %s (libraries built with gcc 12.3.0 mipsel-none-elf)\n" % version)
