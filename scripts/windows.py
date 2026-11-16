@@ -102,13 +102,13 @@ def build_graphics(arch, root, out, work):
                 "-DCMAKE_CXX_COMPILER=" + os.path.join(bindir, triple + "-clang++"),
                 "-DCMAKE_RC_COMPILER=" + os.path.join(bindir, triple + "-windres"),
                 "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_INSTALL_PREFIX=" + prefix,
-                "-DSDL_SHARED=ON", "-DSDL_STATIC=OFF", "-DSDL_TEST=OFF", "-DSDL_TESTS=OFF"])
+                "-DSDL_SHARED=ON", "-DSDL_STATIC=ON", "-DSDL_TEST=OFF", "-DSDL_TESTS=OFF"])
     common.run(["cmake", "--build", build, "--parallel"])
     common.run(["cmake", "--install", build])
 
     gfx = os.path.join(out, "graphics")
     shutil.copytree(os.path.join(prefix, "include"), os.path.join(gfx, "include"))
-    for pattern, dst in [("lib/libSDL2.dll.a", "lib"), ("lib/libSDL2main.a", "lib"), ("bin/SDL2.dll", "bin")]:
+    for pattern, dst in [("lib/libSDL2.a", "lib"), ("lib/libSDL2.dll.a", "lib"), ("lib/libSDL2main.a", "lib"), ("bin/SDL2.dll", "bin")]:
         found = glob.glob(os.path.join(prefix, pattern))
         if not found:
             sys.exit("not installed: " + pattern)

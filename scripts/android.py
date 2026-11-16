@@ -70,6 +70,12 @@ def build_runtime(abi, llvm, sysroot, out):
             for name in sorted(os.listdir(sub)):
                 shutil.copy2(os.path.join(sub, name), dst)
                 found += 1
+    static_cxx = os.path.join(dst, "libc++_static.a")
+    if not os.path.isfile(static_cxx):
+        sys.exit("libc++_static.a not found for " + abi)
+    static_abi = os.path.join(dst, "libc++abi.a")
+    if not os.path.isfile(static_abi):
+        sys.exit("libc++abi.a not found for " + abi)
     if found == 0:
         sys.exit("no runtime libraries found")
 
