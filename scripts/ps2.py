@@ -63,13 +63,25 @@ def copy_startup(env_dir, standard_root):
         print("copied: " + folder + "/startup/crt0.o")
 
 
-def build(env_dir, out, source):
+def copy_link(link, out):
+    if not link:
+        return
+    if not os.path.isfile(link):
+        sys.exit("ps2link.elf not found: " + link)
+    dst = os.path.join(out, "ps2link")
+    os.makedirs(dst, exist_ok=True)
+    shutil.copy2(link, os.path.join(dst, "ps2link.elf"))
+    print("copied: ps2link/ps2link.elf")
+
+
+def build(env_dir, out, source, link=None):
     if os.path.exists(out):
         shutil.rmtree(out)
     copy_parts(os.path.join(env_dir, "ps2sdk"), os.path.join(out, "standard"), STANDARD, STANDARD_REQUIRED)
     copy_libc(env_dir, os.path.join(out, "standard", "libc"))
     copy_startup(env_dir, os.path.join(out, "standard"))
     copy_parts(os.path.join(env_dir, "gsKit"), os.path.join(out, "graphics"), GRAPHICS, GRAPHICS)
+    copy_link(link, out)
     with open(os.path.join(out, "SOURCE.txt"), "w") as f:
         f.write("ps2dev image: " + source + "\n")
 
@@ -79,8 +91,9 @@ def main():
     p.add_argument("--arg", required=True)
     p.add_argument("--out", required=True)
     p.add_argument("--source", default="unknown")
+    p.add_argument("--link", default=None)
     a = p.parse_args()
-    build(a.arg, a.out, a.source)
+    build(a.arg, a.out, a.source, a.link)
 
 
 if __name__ == "__main__":
