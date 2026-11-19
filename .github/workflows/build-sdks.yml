@@ -7,13 +7,6 @@ on:
       - "scripts/**"
       - ".github/workflows/build-sdks.yml"
   workflow_dispatch:
-    inputs:
-      only:
-        description: Build only this target id (empty = all)
-        default: ""
-      release_tag:
-        description: Upload to this release tag (empty = the latest release)
-        default: ""
 
 jobs:
   plan:
@@ -23,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: m
-        run: python3 scripts/common.py matrix --only "${{ inputs.only }}"
+        run: python3 scripts/common.py matrix 
 
   build:
     needs: plan
@@ -156,7 +149,7 @@ jobs:
           merge-multiple: true
       - name: Publish to the latest release
         run: |
-          tag="${{ inputs.release_tag }}"
+          tag=""
           if [ -z "$tag" ]; then tag=$(gh release view --json tagName -q .tagName 2>/dev/null || true); fi
           if [ -z "$tag" ]; then tag=v1.0.0; gh release create "$tag" --title "$tag" --notes ""; fi
           gh release download "$tag" --pattern manifest.json --dir dist 2>/dev/null || true
