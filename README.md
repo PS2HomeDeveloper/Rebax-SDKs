@@ -41,6 +41,14 @@ Rebax treats a package as installed when its folder exists, so no other step is 
 
 The packages are built by the **Build SDK packages** workflow. See [docs/building_packages.md](docs/building_packages.md).
 
+## PlayStation 2 network loader
+
+The PlayStation 2 package also contains `ps2link/ps2link.elf`, built from the [ps2link](https://github.com/ps2dev/ps2link) sources with the high-memory layout. Rebax uses it to run projects on a real console over the network.
+
+## Contributing
+
+Issues and discussions for the whole project are in the [Rebax repository](https://github.com/PS2HomeDeveloper/Rebax). See [CONTRIBUTING.md](CONTRIBUTING.md) for changes to this repository.
+
 ## License
 
-This repository is released under the [MIT License](LICENSE). The packages contain software from other projects, each under its own license. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+The scripts and documentation in this repository are released under the [MIT License](LICENSE). The packages contain software from other projects, each under its own license. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

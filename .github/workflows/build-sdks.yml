@@ -48,7 +48,7 @@ jobs:
         if: matrix.script == 'ps2'
         run: |
           mkdir -p link-out
-          docker run --rm -v "$PWD/link-out:/out" ps2dev/ps2dev:latest sh -c 'command -v git > /dev/null || apk add --no-cache git make > /dev/null; git clone --depth 1 https://github.com/ps2dev/ps2link /tmp/ps2link && cd /tmp/ps2link && make -j"$(nproc)" && f=$(find . -name ps2link.elf | head -n 1) && test -n "$f" && cp "$f" /out/ps2link.elf'
+          docker run --rm -v "$PWD/link-out:/out" ps2dev/ps2dev:latest sh -c 'command -v git > /dev/null || apk add --no-cache git make > /dev/null; git clone --depth 1 https://github.com/ps2dev/ps2link /tmp/ps2link && cd /tmp/ps2link && make LOADHIGH=1 PWOFFONRESET=0 -j"$(nproc)" && test -f ee/ps2link.elf && cp ee/ps2link.elf /out/ps2link.elf'
           ls -l link-out/ps2link.elf
 
       - name: Set up emulation
