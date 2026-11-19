@@ -1,6 +1,11 @@
 name: Build SDK packages
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - ".github/workflows/build-sdks.yml"
   workflow_dispatch:
     inputs:
       only:
