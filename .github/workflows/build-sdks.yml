@@ -64,7 +64,7 @@ jobs:
           (cd work/gsKit && make -j"$(nproc)" && make -j"$(nproc)" install)
           git clone --depth 1 https://github.com/ps2dev/ps2link.git work/ps2link
           echo "ps2link $(git -C work/ps2link rev-parse HEAD)" >> source.txt
-          (cd work/ps2link && make LOADHIGH=1 PWOFFONRESET=0 -j"$(nproc)")
+          (cd work/ps2link && make -C iop LOADHIGH=1 PWOFFONRESET=0 && make -C ee LOADHIGH=1 PWOFFONRESET=0)
           mkdir -p link-out
           cp work/ps2link/ee/ps2link.elf link-out/ps2link.elf
           cat source.txt
