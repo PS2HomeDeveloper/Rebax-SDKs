@@ -131,6 +131,26 @@ jobs:
           cp work/classes.dex sdk-out/graphics/dex/classes.dex
           ls -l sdk-out/graphics/dex/classes.dex
 
+      - name: Get the Rebax source
+        uses: actions/checkout@v4
+        with:
+          repository: PS2HomeDeveloper/Rebax
+          path: rebax-src
+
+      - name: Add the Rebax runtime
+        run: |
+          kind=modern
+          if [ "${{ matrix.script }}" = "ps1" ]; then kind=ps1; fi
+          if [ "${{ matrix.script }}" = "ps2" ]; then kind=ps2; fi
+          mkdir -p sdk-out/rebax
+          cp -R rebax-src/sdk/common sdk-out/rebax/common
+          cp -R "rebax-src/sdk/$kind" "sdk-out/rebax/$kind"
+          cp rebax-src/sdk/LICENSE sdk-out/rebax/LICENSE
+          sed -n 's/^ENGINE_VERSION *:= *//p' rebax-src/Makefile | head -n 1 > sdk-out/rebax/VERSION
+          git -C rebax-src rev-parse HEAD > sdk-out/rebax/SOURCE.txt
+          cat sdk-out/rebax/VERSION sdk-out/rebax/SOURCE.txt
+          find sdk-out/rebax -type f | wc -l
+
       - name: Pack
         run: python3 scripts/common.py pack --root sdk-out --top "${{ matrix.id }}" --name "rebax-sdk-${{ matrix.id }}" --dest dist
 
