@@ -62,8 +62,9 @@ def flatten_framework(src, dst):
         shutil.copytree(headers, os.path.join(dst, "Headers"), symlinks=False, ignore=IGNORE)
     for tbd in glob.glob(os.path.join(base, "*.tbd")) + glob.glob(os.path.join(src, "*.tbd")):
         shutil.copy2(tbd, os.path.join(dst, os.path.basename(tbd)))
-        if os.path.basename(tbd) == name + ".tbd" and not os.path.exists(os.path.join(dst, name)):
-            shutil.copy2(tbd, os.path.join(dst, name))
+        real = os.path.join(dst, "Versions", "A")
+        os.makedirs(real, exist_ok=True)
+        shutil.copy2(tbd, os.path.join(real, os.path.basename(tbd)))
     sub = os.path.join(base, "Frameworks")
     if os.path.isdir(sub):
         for child in sorted(os.listdir(sub)):
@@ -121,7 +122,7 @@ def collect_base(sdk, out, rt_name, std_frameworks):
         sys.exit("not found: " + rt)
     shutil.copy2(rt, rt_lib)
 
-    copy_frameworks(sdk, std_frameworks, os.path.join(out, "standard", "Frameworks"))
+    copy_frameworks(sdk, std_frameworks, os.path.join(out, "standard", "System", "Library", "Frameworks"))
 
 
 def collect_graphics(sdk, arch, out, work, profile):
@@ -150,7 +151,7 @@ def collect_graphics(sdk, arch, out, work, profile):
         shutil.copy2(src, os.path.join(gfx, "lib"))
     for path in glob.glob(os.path.join(gfx, "include", "SDL2", "SDL_test*.h")):
         os.remove(path)
-    copy_frameworks(sdk, profile["gfx_frameworks"], os.path.join(gfx, "Frameworks"))
+    copy_frameworks(sdk, profile["gfx_frameworks"], os.path.join(gfx, "System", "Library", "Frameworks"))
 
 
 def build(arch, out, work, platform="macos"):
