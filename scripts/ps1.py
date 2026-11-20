@@ -20,6 +20,7 @@ def fetch(version, work):
          "https://github.com/Lameguy64/PSn00bSDK.git", source])
     env = dict(os.environ)
     env["PATH"] = os.path.join(toolchain, "bin") + os.pathsep + env.get("PATH", "")
+    env["CFLAGS"] = "-std=gnu17"
     build_dir = os.path.join(work, "build")
     run(["cmake", "-S", source, "-B", build_dir, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
          "-DSKIP_EXAMPLES=ON", "-DMKPSXISO_NO_LIBFLAC=ON", "-DPSN00BSDK_TC=" + toolchain], env=env)

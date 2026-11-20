@@ -44,7 +44,7 @@ jobs:
           mkdir -p "$PS2DEV" work
           curl -fsSL "$base/rebax-gcc-ps2-linux-x86_64.tar.xz" | tar -xJ -C "$PS2DEV" --strip-components=1
           export PATH="$PATH:$PS2DEV/bin:$PS2DEV/ee/bin:$PS2DEV/iop/bin:$PS2DEV/dvp/bin:$PS2SDK/bin"
-          ee-gcc --version | head -n 1
+          mips64r5900el-ps2-elf-gcc --version | head -n 1
           : > source.txt
           git clone --depth 1 https://github.com/ps2dev/ps2toolchain-ee.git work/ps2toolchain-ee
           echo "ps2toolchain-ee $(git -C work/ps2toolchain-ee rev-parse HEAD)" >> source.txt
@@ -60,6 +60,7 @@ jobs:
           for lib in libcglue libpthreadglue libprofglue libkernel libcdvd; do
             ln -sf "../../../ps2sdk/ee/lib/$lib.a" "$PS2DEV/ee/mips64r5900el-ps2-elf/lib/$lib.a"
           done
+          ln -sf "$PS2DEV/share/ps2dev.cmake" "$PS2SDK/ps2dev.cmake"
           (cd work/gsKit && make -j"$(nproc)" && make -j"$(nproc)" install)
           git clone --depth 1 https://github.com/ps2dev/ps2link.git work/ps2link
           echo "ps2link $(git -C work/ps2link rev-parse HEAD)" >> source.txt
