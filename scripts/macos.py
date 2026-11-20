@@ -1,4 +1,4 @@
-import argparse, glob, os, shutil, subprocess, sys, tarfile, urllib.request
+import argparse, glob, os, re, shutil, subprocess, sys, tarfile, urllib.request
 
 import common
 
@@ -62,9 +62,13 @@ def flatten_framework(src, dst):
         shutil.copytree(headers, os.path.join(dst, "Headers"), symlinks=False, ignore=IGNORE)
     for tbd in glob.glob(os.path.join(base, "*.tbd")) + glob.glob(os.path.join(src, "*.tbd")):
         shutil.copy2(tbd, os.path.join(dst, os.path.basename(tbd)))
-        real = os.path.join(dst, "Versions", "A")
-        os.makedirs(real, exist_ok=True)
-        shutil.copy2(tbd, os.path.join(real, os.path.basename(tbd)))
+        if os.path.basename(tbd) == name + ".tbd":
+            with open(tbd, encoding="utf-8", errors="replace") as handle:
+                found = re.search(r"install-name:\s*['\"]?([^'\"\s]+)", handle.read())
+            rel = found.group(1).split(".framework/", 1)[-1] if found and ".framework/" in found.group(1) else "Versions/A/" + name
+            target = os.path.join(dst, rel + ".tbd")
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            shutil.copy2(tbd, target)
     sub = os.path.join(base, "Frameworks")
     if os.path.isdir(sub):
         for child in sorted(os.listdir(sub)):
@@ -72,14 +76,33 @@ def flatten_framework(src, dst):
                 flatten_framework(os.path.join(sub, child), os.path.join(dst, "Frameworks", child))
 
 
+def reexported_names(tbd_path):
+    with open(tbd_path, encoding="utf-8", errors="replace") as handle:
+        text = handle.read()
+    names = set()
+    for block in re.split(r"(?m)^(?=\S)", text):
+        if block.startswith("reexported-libraries"):
+            names.update(re.findall(r"/System/Library/Frameworks/(\w+)\.framework/", block))
+    return names
+
+
 def copy_frameworks(sdk, names, dst):
     root = os.path.join(sdk, "System", "Library", "Frameworks")
-    for name in names:
+    queue = list(names)
+    done = set()
+    while queue:
+        name = queue.pop(0)
+        if name in done:
+            continue
+        done.add(name)
         src = os.path.join(root, name + ".framework")
         if not os.path.isdir(src):
             print("skip (not in this SDK): " + name)
             continue
-        flatten_framework(src, os.path.join(dst, name + ".framework"))
+        target = os.path.join(dst, name + ".framework")
+        flatten_framework(src, target)
+        for tbd in glob.glob(os.path.join(target, "**", "*.tbd"), recursive=True):
+            queue.extend(sorted(reexported_names(tbd)))
 
 
 def collect_base(sdk, out, rt_name, std_frameworks):
