@@ -1,20 +1,32 @@
-import argparse, os, shutil, sys, urllib.request, zipfile
+import argparse, os, shutil, subprocess, sys
 
 GRAPHICS_HEADERS = ["psxgpu.h", "psxgte.h", "inline_c.h", "inline_s.inc", "gtereg.inc"]
 GRAPHICS_LIBS = ("libpsxgpu_", "libpsxgte_")
 VARIANTS = ["release", "debug"]
 
 
+def run(cmd, cwd=None, env=None):
+    print("+ " + " ".join(cmd), flush=True)
+    subprocess.run(cmd, check=True, cwd=cwd, env=env)
+
+
 def fetch(version, work):
-    url = "https://github.com/Lameguy64/PSn00bSDK/releases/download/v%s/PSn00bSDK-%s-Linux.zip" % (version, version)
-    archive = os.path.join(work, "psn00bsdk.zip")
-    print("download " + url, flush=True)
-    urllib.request.urlretrieve(url, archive)
-    with zipfile.ZipFile(archive) as z:
-        z.extractall(work)
-    root = os.path.join(work, "PSn00bSDK-%s-Linux" % version)
-    if not os.path.isdir(os.path.join(root, "lib", "libpsn00b")):
-        sys.exit("unexpected release layout: " + root)
+    toolchain = os.environ.get("REBAX_PS1_TOOLCHAIN")
+    if not toolchain or not os.path.isfile(os.path.join(toolchain, "bin", "mipsel-none-elf-gcc")):
+        sys.exit("REBAX_PS1_TOOLCHAIN must point to the Rebax PS1 compiler package")
+    toolchain = os.path.abspath(toolchain)
+    source = os.path.join(work, "PSn00bSDK")
+    run(["git", "clone", "--recursive", "--depth", "1", "-b", "v" + version,
+         "https://github.com/Lameguy64/PSn00bSDK.git", source])
+    env = dict(os.environ)
+    env["PATH"] = os.path.join(toolchain, "bin") + os.pathsep + env.get("PATH", "")
+    build_dir = os.path.join(work, "build")
+    run(["cmake", "-S", source, "-B", build_dir, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
+         "-DSKIP_EXAMPLES=ON", "-DMKPSXISO_NO_LIBFLAC=ON", "-DPSN00BSDK_TC=" + toolchain], env=env)
+    run(["cmake", "--build", build_dir], env=env)
+    root = os.path.join(build_dir, "tree")
+    if not os.path.isdir(os.path.join(root, "lib", "libpsn00b", "release")):
+        sys.exit("unexpected build layout: " + root)
     return root
 
 
@@ -55,7 +67,7 @@ def build(version, out):
         shutil.copytree(gcc_root, os.path.join(out, "standard", "lib", "gcc", "mipsel-none-elf"), symlinks=True)
 
     with open(os.path.join(out, "SOURCE.txt"), "w") as f:
-        f.write("PSn00bSDK %s (libraries built with gcc 12.3.0 mipsel-none-elf)\n" % version)
+        f.write("PSn00bSDK %s (built from source with the Rebax PS1 compiler)\n" % version)
 
 
 def main():

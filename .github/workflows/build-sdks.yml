@@ -32,22 +32,51 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Take the official ps2dev environment
+      - name: Build the PS2 environment from source
         if: matrix.script == 'ps2'
         run: |
-          docker pull ps2dev/ps2dev:latest
-          docker inspect --format '{{index .RepoDigests 0}}' ps2dev/ps2dev:latest > source.txt
-          cat source.txt
-          id=$(docker create ps2dev/ps2dev:latest)
-          docker cp "$id:/usr/local/ps2dev" ps2dev-env
-          docker rm "$id"
-
-      - name: Build ps2link from source
-        if: matrix.script == 'ps2'
-        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git curl xz-utils patch
+          base="https://github.com/PS2HomeDeveloper/Rebax-Toolchains/releases/latest/download"
+          export PS2DEV="$PWD/ps2dev-env"
+          export PS2SDK="$PS2DEV/ps2sdk"
+          export GSKIT="$PS2DEV/gsKit"
+          mkdir -p "$PS2DEV" work
+          curl -fsSL "$base/rebax-gcc-ps2-linux-x86_64.tar.xz" | tar -xJ -C "$PS2DEV" --strip-components=1
+          export PATH="$PATH:$PS2DEV/bin:$PS2DEV/ee/bin:$PS2DEV/iop/bin:$PS2DEV/dvp/bin:$PS2SDK/bin"
+          ee-gcc --version | head -n 1
+          : > source.txt
+          git clone --depth 1 https://github.com/ps2dev/ps2toolchain-ee.git work/ps2toolchain-ee
+          echo "ps2toolchain-ee $(git -C work/ps2toolchain-ee rev-parse HEAD)" >> source.txt
+          mkdir -p work/build
+          for step in 003-newlib 004-newlib-nano 005-pthread-embedded 007-post-install; do
+            (cd work/build && bash "$GITHUB_WORKSPACE/work/ps2toolchain-ee/scripts/$step.sh")
+          done
+          for repo in ps2sdk gsKit; do
+            git clone --depth 1 "https://github.com/ps2dev/$repo.git" "work/$repo"
+            echo "$repo $(git -C work/$repo rev-parse HEAD)" >> source.txt
+          done
+          (cd work/ps2sdk && unset PS2SDKSRC && make -j"$(nproc)" || make -j1; make -j"$(nproc)" install)
+          for lib in libcglue libpthreadglue libprofglue libkernel libcdvd; do
+            ln -sf "../../../ps2sdk/ee/lib/$lib.a" "$PS2DEV/ee/mips64r5900el-ps2-elf/lib/$lib.a"
+          done
+          (cd work/gsKit && make -j"$(nproc)" && make -j"$(nproc)" install)
+          git clone --depth 1 https://github.com/ps2dev/ps2link.git work/ps2link
+          echo "ps2link $(git -C work/ps2link rev-parse HEAD)" >> source.txt
+          (cd work/ps2link && make LOADHIGH=1 PWOFFONRESET=0 -j"$(nproc)")
           mkdir -p link-out
-          docker run --rm -v "$PWD/link-out:/out" ps2dev/ps2dev:latest sh -c 'command -v git > /dev/null || apk add --no-cache git make > /dev/null; git clone --depth 1 https://github.com/ps2dev/ps2link /tmp/ps2link && cd /tmp/ps2link && make LOADHIGH=1 PWOFFONRESET=0 -j"$(nproc)" && test -f ee/ps2link.elf && cp ee/ps2link.elf /out/ps2link.elf'
-          ls -l link-out/ps2link.elf
+          cp work/ps2link/ee/ps2link.elf link-out/ps2link.elf
+          cat source.txt
+
+      - name: Build the PS1 libraries from source
+        if: matrix.script == 'ps1'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake git curl xz-utils build-essential
+          mkdir -p ps1-tc
+          curl -fsSL "https://github.com/PS2HomeDeveloper/Rebax-Toolchains/releases/latest/download/rebax-gcc-ps1-linux-x86_64.tar.xz" | tar -xJ -C ps1-tc --strip-components=1
+          ps1-tc/bin/mipsel-none-elf-gcc --version | head -n 1
+          echo "REBAX_PS1_TOOLCHAIN=$PWD/ps1-tc" >> "$GITHUB_ENV"
 
       - name: Set up emulation
         if: matrix.script == 'linux'
