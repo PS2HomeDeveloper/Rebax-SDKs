@@ -200,9 +200,9 @@ jobs:
           merge-multiple: true
       - name: Publish to the latest release
         run: |
-          tag=""
-          if [ -z "$tag" ]; then tag=$(gh release view --json tagName -q .tagName 2>/dev/null || true); fi
-          if [ -z "$tag" ]; then tag=v1.0.0; gh release create "$tag" --title "$tag" --notes ""; fi
+          tag=$(curl -fsSL https://raw.githubusercontent.com/PS2HomeDeveloper/Rebax/main/Makefile | sed -n 's/^ENGINE_VERSION *:= *//p' | head -n 1)
+          echo "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || { echo "Cannot read the engine version"; exit 1; }
+          gh release view "$tag" > /dev/null 2>&1 || gh release create "$tag" --title "Rebax SDKs ${tag#v}" --notes "SDK packages for Rebax Engine ${tag#v}."
           gh release download "$tag" --pattern manifest.json --dir dist 2>/dev/null || true
           python3 scripts/common.py manifest --dir dist
           gh release upload "$tag" dist/*.tar.xz dist/manifest.json --clobber
