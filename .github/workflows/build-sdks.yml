@@ -139,6 +139,7 @@ jobs:
 
       - name: Add the Rebax runtime
         run: |
+          sudo chown -R "$(id -u):$(id -g)" sdk-out
           kind=modern
           if [ "${{ matrix.script }}" = "ps1" ]; then kind=ps1; fi
           if [ "${{ matrix.script }}" = "ps2" ]; then kind=ps2; fi
