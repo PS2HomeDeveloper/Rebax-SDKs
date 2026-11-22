@@ -99,12 +99,69 @@ def fetch(urls, dest):
 
 GAME_ACTIVITY = """package org.rebax.game;
 
+import android.os.Build;
+import android.os.Bundle;
+import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
+
 import org.libsdl.app.SDLActivity;
 
 public class GameActivity extends SDLActivity {
+    private static final int IMMERSIVE_FLAGS =
+            View.SYSTEM_UI_FLAG_FULLSCREEN |
+            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+
     @Override
     protected String[] getLibraries() {
         return new String[] { "main" };
+    }
+
+    private void applyImmersive() {
+        Window window = getWindow();
+        if (window == null) return;
+        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        if (Build.VERSION.SDK_INT >= 28) {
+            window.getAttributes().layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        }
+        window.getDecorView().setSystemUiVisibility(IMMERSIVE_FLAGS);
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        applyImmersive();
+        getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(this);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        applyImmersive();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        applyImmersive();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) applyImmersive();
+    }
+
+    @Override
+    public void onSystemUiVisibilityChange(int visibility) {
+        if ((visibility & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) == 0 || (visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0) {
+            applyImmersive();
+        }
     }
 }
 """
