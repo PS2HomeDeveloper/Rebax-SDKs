@@ -125,10 +125,14 @@ public class GameActivity extends SDLActivity {
         Window window = getWindow();
         if (window == null) return;
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        if (Build.VERSION.SDK_INT >= 28) {
-            window.getAttributes().layoutInDisplayCutoutMode =
-                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        WindowManager.LayoutParams params = window.getAttributes();
+        if (Build.VERSION.SDK_INT >= 26) {
+            params.rotationAnimation = WindowManager.LayoutParams.ROTATION_ANIMATION_CROSSFADE;
         }
+        if (Build.VERSION.SDK_INT >= 28) {
+            params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        }
+        window.setAttributes(params);
         window.getDecorView().setSystemUiVisibility(IMMERSIVE_FLAGS);
     }
 
