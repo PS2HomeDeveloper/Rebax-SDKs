@@ -72,7 +72,9 @@ def collect_graphics(out, work):
     build = os.path.join(work, "sdl2-build")
     common.run(["cmake", "-S", os.path.join(work, "SDL2-" + SDL2_VERSION), "-B", build, "-G", "Ninja",
                 "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_INSTALL_PREFIX=" + prefix,
-                "-DSDL_SHARED=OFF", "-DSDL_STATIC=ON", "-DSDL_TEST=OFF", "-DSDL_TESTS=OFF"])
+                "-DSDL_SHARED=OFF", "-DSDL_STATIC=ON",
+                "-DSDL_TEST=OFF", "-DSDL_TESTS=OFF",
+                "-DSDL_X11=ON", "-DSDL_X11_SHARED=ON"])
     common.run(["cmake", "--build", build, "--parallel"])
     common.run(["cmake", "--install", build])
     gfx = os.path.join(out, "graphics")
