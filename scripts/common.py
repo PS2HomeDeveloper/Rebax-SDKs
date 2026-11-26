@@ -66,7 +66,8 @@ def pack(root, top, name, dest):
     os.makedirs(dest, exist_ok=True)
     archive = os.path.join(dest, name + ".tar.xz")
     with tarfile.open(archive, "w:xz", format=tarfile.GNU_FORMAT, dereference=True, preset=9 | lzma.PRESET_EXTREME) as tf:
-        tf.add(root, arcname=top)
+        for entry in sorted(os.listdir(root)):
+            tf.add(os.path.join(root, entry), arcname=entry)
     with open(os.path.join(dest, name + ".tree.txt"), "w", encoding="utf-8") as f:
         f.write(list_tree(root, top))
     digest = sha256(archive)

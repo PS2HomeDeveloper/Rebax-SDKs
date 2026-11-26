@@ -44,7 +44,7 @@ jobs:
           export PS2SDK="$PS2DEV/ps2sdk"
           export GSKIT="$PS2DEV/gsKit"
           mkdir -p "$PS2DEV" work
-          curl -fsSL "$base/rebax-gcc-ps2-linux-x86_64.tar.xz" | tar -xJ -C "$PS2DEV" --strip-components=1
+          curl -fsSL "$base/rebax-gcc-ps2-linux-x86_64.tar.xz" | tar -xJ -C "$PS2DEV"
           export PATH="$PATH:$PS2DEV/bin:$PS2DEV/ee/bin:$PS2DEV/iop/bin:$PS2DEV/dvp/bin:$PS2SDK/bin"
           mips64r5900el-ps2-elf-gcc --version | head -n 1
           : > source.txt
@@ -77,7 +77,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ninja-build cmake git curl xz-utils build-essential
           mkdir -p ps1-tc
-          curl -fsSL "https://github.com/PS2HomeDeveloper/Rebax-Toolchains/releases/latest/download/rebax-gcc-ps1-linux-x86_64.tar.xz" | tar -xJ -C ps1-tc --strip-components=1
+          curl -fsSL "https://github.com/PS2HomeDeveloper/Rebax-Toolchains/releases/latest/download/rebax-gcc-ps1-linux-x86_64.tar.xz" | tar -xJ -C ps1-tc
           ps1-tc/bin/mipsel-none-elf-gcc --version | head -n 1
           echo "REBAX_PS1_TOOLCHAIN=$PWD/ps1-tc" >> "$GITHUB_ENV"
 
@@ -146,8 +146,10 @@ jobs:
           if [ "${{ matrix.script }}" = "ps1" ]; then kind=ps1; fi
           if [ "${{ matrix.script }}" = "ps2" ]; then kind=ps2; fi
           mkdir -p sdk-out/rebax
-          cp -R rebax-src/sdk/common sdk-out/rebax/common
-          cp -R "rebax-src/sdk/$kind" "sdk-out/rebax/$kind"
+          mkdir -p sdk-out/rebax/include
+          cp -R rebax-src/sdk/common/include/. sdk-out/rebax/include/
+          cp -R "rebax-src/sdk/$kind/api" sdk-out/rebax/api
+          cp -R "rebax-src/sdk/$kind/systems" sdk-out/rebax/systems
           cp rebax-src/sdk/LICENSE sdk-out/rebax/LICENSE
           sed -n 's/^ENGINE_VERSION *:= *//p' rebax-src/Makefile | head -n 1 > sdk-out/rebax/VERSION
           git -C rebax-src rev-parse HEAD > sdk-out/rebax/SOURCE.txt
