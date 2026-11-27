@@ -92,43 +92,43 @@ def manifest(directory):
 
 
 def write_section_manifests(root):
-    """Write local dependency metadata beside each SDK section.
-
-    The engine treats header names as discovery keys and never requires a
-    hand-maintained master header or library list.
-    """
-    for section in ("standard", "runtime", "graphics"):
-        directory = os.path.join(root, section)
-        if not os.path.isdir(directory):
-            continue
-        headers = {}
+    """Write one readable manifest for every directory containing headers."""
+    for name in sorted(os.listdir(root)):
+        directory = os.path.join(root, name)
         include = os.path.join(directory, "include")
-        if os.path.isdir(include):
-            for base, _, files in os.walk(include):
-                for name in files:
-                    if name.endswith(('.h', '.hh', '.hpp', '.hxx')):
-                        rel = os.path.relpath(os.path.join(base, name), include).replace(os.sep, '/')
-                        headers[rel] = {"libraries": []}
-                        headers.setdefault(name, {"libraries": []})
+        if not os.path.isdir(directory) or not any(os.path.isdir(os.path.join(directory, child)) for child in ("include", "lib", "src")):
+            continue
+        headers = []
+        for base, _, files in os.walk(include):
+            for filename in sorted(files):
+                if filename.endswith((".h", ".hh", ".hpp", ".hxx")):
+                    headers.append(os.path.relpath(os.path.join(base, filename), include).replace(os.sep, "/"))
         libraries = []
         libdir = os.path.join(directory, "lib")
         if os.path.isdir(libdir):
             for base, _, files in os.walk(libdir):
-                for name in files:
-                    if name.endswith(('.a', '.so', '.dylib')):
-                        libraries.append(os.path.relpath(os.path.join(base, name), libdir).replace(os.sep, '/'))
-        if section == "graphics":
-            for key in ("SDL.h", "SDL2/SDL.h"):
-                if key in headers:
-                    headers[key]["libraries"] = ["SDL2"]
-        if section == "runtime":
-            for key in headers:
-                headers[key]["libraries"] = ["c++"] if key.endswith(('.hpp', '.hxx')) else []
-        payload = {"format": 1, "section": section, "headers": headers,
-                   "libraries": sorted(set(libraries)), "extra_compile_flags": [],
-                   "extra_link_flags": []}
+                for filename in sorted(files):
+                    if filename.endswith((".a", ".so", ".dylib", ".lib")):
+                        libraries.append(os.path.relpath(os.path.join(base, filename), libdir).replace(os.sep, "/"))
+        lib_names = []
+        for library in libraries:
+            stem = os.path.basename(library)
+            if stem.startswith("lib"):
+                stem = stem[3:]
+            for suffix in (".a", ".so", ".dylib", ".lib"):
+                if stem.endswith(suffix):
+                    stem = stem[:-len(suffix)]
+            if stem and stem not in lib_names:
+                lib_names.append(stem)
+        manifest = ["format=1", "section=" + name]
+        if os.path.isdir(include):
+            manifest.append("include=include")
+        for header in headers:
+            manifest.append("header=" + header + ("|" + ",".join(lib_names) if lib_names else ""))
+        for library in libraries:
+            manifest.append("library=" + library)
         with open(os.path.join(directory, "rebax-libs.manifest"), "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, sort_keys=True)
+            f.write("\n".join(manifest) + "\n")
 
 
 def matrix(only):
