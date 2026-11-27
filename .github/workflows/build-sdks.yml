@@ -153,6 +153,7 @@ jobs:
           cp rebax-src/sdk/LICENSE sdk-out/rebax/LICENSE
           sed -n 's/^ENGINE_VERSION *:= *//p' rebax-src/Makefile | head -n 1 > sdk-out/rebax/VERSION
           git -C rebax-src rev-parse HEAD > sdk-out/rebax/SOURCE.txt
+          python3 -c 'import sys; sys.path.insert(0, "scripts"); import common; common.write_section_manifests("sdk-out")'
           cat sdk-out/rebax/VERSION sdk-out/rebax/SOURCE.txt
           find sdk-out/rebax -type f | wc -l
 
